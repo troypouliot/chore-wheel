@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chore Wheel — Admin</title>
+<link rel="stylesheet" href="/static/admin.css?v={{ v }}">
+</head>
+<body>
+  <div id="login-screen" class="screen {{ 'hidden' if authed else '' }}">
+    <div class="login-card">
+      <h1>Chore Wheel Admin</h1>
+      <input id="login-password" type="password" placeholder="Password" autofocus>
+      <button id="login-btn">Log in</button>
+      <p id="login-error" class="error hidden"></p>
+      <p class="hint">Default password is <code>chorewheel</code> — change it under Settings after logging in.</p>
+      <a href="/" class="ghost-link back-link">&larr; Back to kiosk</a>
+    </div>
+  </div>
+
+  <div id="admin-screen" class="screen {{ '' if authed else 'hidden' }}">
+    <header>
+      <h1>Chore Wheel Admin</h1>
+      <nav>
+        <button class="tab-btn active" data-tab="kids">Kids</button>
+        <button class="tab-btn" data-tab="items">Chores &amp; Prizes</button>
+        <button class="tab-btn" data-tab="history">History</button>
+        <button class="tab-btn" data-tab="settings">Settings</button>
+      </nav>
+      <div class="header-actions">
+        <a href="/" class="ghost-link">View Kiosk</a>
+        <button id="logout-btn" class="ghost-link">Log out</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="tab-kids" class="tab-panel active">
+        <div class="panel-header">
+          <h2>Kids</h2>
+          <button class="add-btn" data-add="kid">+ Add kid</button>
+        </div>
+        <table id="kids-table">
+          <thead><tr><th>Name</th><th>Spins/day</th><th>Color</th><th>Active</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section id="tab-items" class="tab-panel">
+        <div class="panel-header">
+          <h2>Chores &amp; Prizes</h2>
+          <button class="add-btn" data-add="item">+ Add item</button>
+        </div>
+        <table id="items-table">
+          <thead><tr><th>Label</th><th>Type</th><th>Weight</th><th>Color</th><th>Active</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="hint">Weight sets the odds — an item with weight 3 is 3x as likely as one with weight 1.</p>
+      </section>
+
+      <section id="tab-history" class="tab-panel">
+        <h2>Recent spins</h2>
+        <table id="history-table">
+          <thead><tr><th>When</th><th>Kid</th><th>Result</th><th>Type</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section id="tab-settings" class="tab-panel">
+        <h2>Settings</h2>
+        <div class="settings-card">
+          <h3>Change admin password</h3>
+          <input id="current-password" type="password" placeholder="Current password">
+          <input id="new-password" type="password" placeholder="New password">
+          <button id="change-password-btn">Update password</button>
+          <p id="password-msg" class="hint"></p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal-overlay" class="overlay hidden">
+    <div class="modal">
+      <h3 id="modal-title"></h3>
+      <div id="modal-body"></div>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="ghost-link">Cancel</button>
+        <button id="modal-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <button id="keyboard-toggle-btn" title="Show/hide keyboard">⌨</button>
+
+  <script src="/static/admin.js?v={{ v }}"></script>
+</body>
+</html>

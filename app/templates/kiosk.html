@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Chore Wheel</title>
+<link rel="stylesheet" href="/static/kiosk.css?v={{ v }}">
+</head>
+<body>
+  <div id="app">
+    <div id="kid-select" class="screen active">
+      <h1>Who's spinning?</h1>
+      <div id="kid-list" class="kid-list"></div>
+      <button id="admin-link" class="ghost-btn">Admin</button>
+    </div>
+
+    <div id="wheel-screen" class="screen">
+      <div class="top-bar">
+        <button id="back-btn" class="ghost-btn">&larr; Back</button>
+        <div id="kid-banner"></div>
+        <div id="spins-left"></div>
+      </div>
+      <div class="wheel-wrap">
+        <canvas id="wheel" width="600" height="600"></canvas>
+        <div id="pointer"></div>
+      </div>
+      <button id="spin-btn">SPIN</button>
+    </div>
+
+    <div id="result-overlay" class="overlay hidden">
+      <div class="result-card">
+        <div id="result-kind" class="result-kind"></div>
+        <div id="result-label" class="result-label"></div>
+        <button id="result-close">Nice!</button>
+      </div>
+    </div>
+
+    <!-- Invisible corner tap zone: tap 5x quickly to bring up the exit-kiosk
+         confirmation. Not shown or hinted anywhere on purpose. -->
+    <div id="exit-tap-zone"></div>
+
+    <button id="keyboard-toggle-btn" title="Show/hide keyboard">⌨</button>
+
+    <div id="exit-confirm-overlay" class="overlay hidden">
+      <div class="result-card">
+        <div class="result-label">Exit kiosk mode?</div>
+        <div class="exit-confirm-actions">
+          <button id="exit-cancel" class="ghost-btn">Cancel</button>
+          <button id="exit-confirm">Exit</button>
+        </div>
+        <div id="exit-error" class="exit-error hidden">
+          Couldn't reach the kill-switch helper — is it running on the Pi?
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/kiosk.js?v={{ v }}"></script>
+</body>
+</html>

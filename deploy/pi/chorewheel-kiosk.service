@@ -1,0 +1,34 @@
+[Unit]
+Description=Chore Wheel kiosk browser
+After=graphical.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/pi/.Xauthority
+# Give the network a moment to come up on boot before hitting the server
+ExecStartPre=/bin/sleep 8
+# Replace CHOREWHEEL_SERVER_IP below with your home server's LAN IP or
+# hostname (e.g. http://192.168.1.50:8000/ or http://homeserver.local:8000/).
+# The Pi no longer runs the backend itself — it just displays this page.
+ExecStart=/usr/bin/chromium --kiosk --noerrdialogs --disable-infobars \
+  --no-first-run --disable-translate --check-for-update-interval=31536000 \
+  --disable-pinch --overscroll-history-navigation=0 \
+  --password-store=basic \
+  http://CHOREWHEEL_SERVER_IP:8000/
+# Auto-restart is deliberately OFF right now — use the "Restart Chore Wheel"
+# desktop shortcut to relaunch after using the kill switch, rather than it
+# coming back on its own. Change back to `on-failure` later if you want the
+# old always-running behavior.
+Restart=no
+# Chromium forks into subprocesses (renderer, GPU, etc.) that can escape
+# systemd's default PID tracking, leaving `systemctl stop` unable to kill
+# the window. Force a full cgroup kill, and back it up with a direct pkill.
+KillMode=control-group
+TimeoutStopSec=10
+ExecStop=/usr/bin/pkill -9 -f chromium
+
+[Install]
+WantedBy=graphical.target

@@ -1,0 +1,12 @@
+# Allows the pi user to restart ONLY the chorewheel-kiosk service without a
+# sudo password — needed so the desktop shortcut can restart it with a
+# single tap, without a password prompt (and without an on-screen keyboard
+# needed just for this). Scoped to this exact command; does not grant any
+# broader sudo access.
+#
+# Install with:
+#   sudo cp chorewheel-restart-sudoers /etc/sudoers.d/chorewheel-restart
+#   sudo chmod 440 /etc/sudoers.d/chorewheel-restart
+#   sudo visudo -c   (validates syntax before it takes effect)
+
+pi ALL=(root) NOPASSWD: /usr/bin/systemctl restart chorewheel-kiosk.service

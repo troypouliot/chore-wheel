@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Restart Chore Wheel
+Comment=Restart the kiosk browser
+Exec=/home/pi/chore-wheel/pi-helper/desktop-shortcut/restart-kiosk.sh
+Icon=view-refresh
+Terminal=false
+Categories=Utility;

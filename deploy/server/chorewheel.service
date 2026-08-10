@@ -1,0 +1,24 @@
+[Unit]
+Description=Chore Wheel backend (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+# Recommend a dedicated, unprivileged system user rather than your own login
+# or root, since this box also runs Home Assistant. Create it first with:
+#   sudo useradd --system --create-home --shell /usr/sbin/nologin chorewheel
+User=chorewheel
+Group=chorewheel
+WorkingDirectory=/opt/chorewheel/app
+ExecStart=/opt/chorewheel/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=3
+
+# Light sandboxing since this runs alongside other services on a shared box
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/chorewheel/app/data
+
+[Install]
+WantedBy=multi-user.target

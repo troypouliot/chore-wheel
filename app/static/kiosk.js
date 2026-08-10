@@ -1,0 +1,260 @@
+const state = {
+  kids: [],
+  wheelItems: [],
+  selectedKid: null,
+  currentRotation: 0,
+  spinning: false,
+};
+
+const kidSelectScreen = document.getElementById("kid-select");
+const wheelScreen = document.getElementById("wheel-screen");
+const kidListEl = document.getElementById("kid-list");
+const kidBannerEl = document.getElementById("kid-banner");
+const spinsLeftEl = document.getElementById("spins-left");
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+const spinBtn = document.getElementById("spin-btn");
+const resultOverlay = document.getElementById("result-overlay");
+const resultKindEl = document.getElementById("result-kind");
+const resultLabelEl = document.getElementById("result-label");
+
+function showScreen(el) {
+  document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
+  el.classList.add("active");
+}
+
+async function loadKids() {
+  const res = await fetch("/api/kids");
+  state.kids = await res.json();
+  renderKidList();
+}
+
+async function loadWheelItems() {
+  const res = await fetch("/api/wheel");
+  state.wheelItems = await res.json();
+  drawWheel();
+}
+
+function renderKidList() {
+  kidListEl.innerHTML = "";
+  state.kids.forEach((kid) => {
+    const card = document.createElement("div");
+    card.className = "kid-card" + (kid.spins_remaining <= 0 ? " disabled" : "");
+    card.style.background = kid.color;
+    card.innerHTML = `<div>${kid.name}</div><div class="subtext">${kid.spins_remaining} spin${kid.spins_remaining === 1 ? "" : "s"} left</div>`;
+    card.addEventListener("click", () => selectKid(kid));
+    kidListEl.appendChild(card);
+  });
+}
+
+function selectKid(kid) {
+  state.selectedKid = kid;
+  kidBannerEl.textContent = kid.name;
+  updateSpinsLeftLabel();
+  showScreen(wheelScreen);
+}
+
+function updateSpinsLeftLabel() {
+  const kid = state.kids.find((k) => k.id === state.selectedKid.id) || state.selectedKid;
+  spinsLeftEl.textContent = `${kid.spins_remaining} spin${kid.spins_remaining === 1 ? "" : "s"} left today`;
+  spinBtn.disabled = kid.spins_remaining <= 0 || state.spinning;
+}
+
+function drawWheel() {
+  const items = state.wheelItems;
+  const size = canvas.width;
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = size / 2;
+  const totalWeight = items.reduce((s, i) => s + Math.max(1, i.weight), 0) || 1;
+
+  ctx.clearRect(0, 0, size, size);
+
+  let angle = -Math.PI / 2; // start at top
+  state._segments = [];
+  items.forEach((item) => {
+    const slice = (Math.max(1, item.weight) / totalWeight) * Math.PI * 2;
+    const start = angle;
+    const end = angle + slice;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radius, start, end);
+    ctx.closePath();
+    ctx.fillStyle = item.color || "#8e8e93";
+    ctx.fill();
+
+    // label
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate((start + end) / 2);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.font = "bold 20px -apple-system, sans-serif";
+    ctx.fillText(truncateLabel(item.label), radius - 24, 6);
+    ctx.restore();
+
+    state._segments.push({ start, end, mid: (start + end) / 2, item });
+    angle = end;
+  });
+}
+
+function truncateLabel(label) {
+  return label.length > 22 ? label.slice(0, 20) + "…" : label;
+}
+
+async function spin() {
+  if (state.spinning || !state.selectedKid) return;
+  state.spinning = true;
+  spinBtn.disabled = true;
+
+  let data;
+  try {
+    const res = await fetch("/api/spin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kid_id: state.selectedKid.id }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.detail || "Could not spin");
+      state.spinning = false;
+      spinBtn.disabled = false;
+      return;
+    }
+    data = await res.json();
+  } catch (e) {
+    alert("Network error — check the kiosk's connection.");
+    state.spinning = false;
+    spinBtn.disabled = false;
+    return;
+  }
+
+  animateToResult(data.result);
+
+  // update local spins-remaining state
+  state.selectedKid.spins_remaining = data.spins_remaining;
+  const kidRef = state.kids.find((k) => k.id === state.selectedKid.id);
+  if (kidRef) kidRef.spins_remaining = data.spins_remaining;
+}
+
+function animateToResult(result) {
+  const seg = state._segments.find((s) => s.item.id === result.id);
+  if (!seg) return;
+
+  // seg.mid is in canvas angle terms, where 0deg points right and -90deg
+  // points to the physical top of the wheel (that's where drawing starts).
+  // Convert it to "degrees clockwise from the pointer at the top" before
+  // computing how far to rotate, or every result lands 90 degrees off from
+  // where the wheel visually stops.
+  const segMidDeg = (seg.mid * 180) / Math.PI;
+  const segMidFromTop = segMidDeg + 90;
+  const targetDeg = -segMidFromTop; // rotate wheel backward by that amount to bring it under the pointer
+  const extraSpins = 5 + Math.floor(Math.random() * 3); // 5-7 full spins for drama
+  const finalRotation = state.currentRotation + extraSpins * 360 + normalizeDelta(state.currentRotation, targetDeg);
+
+  canvas.style.transform = `rotate(${finalRotation}deg)`;
+  state.currentRotation = finalRotation;
+
+  setTimeout(() => {
+    showResult(result);
+    state.spinning = false;
+    updateSpinsLeftLabel();
+    renderKidList();
+  }, 5200);
+}
+
+function normalizeDelta(current, target) {
+  // amount to add to current so it aligns with target modulo 360, minimal positive
+  const currentMod = ((current % 360) + 360) % 360;
+  const targetMod = ((target % 360) + 360) % 360;
+  let delta = targetMod - currentMod;
+  if (delta < 0) delta += 360;
+  return delta;
+}
+
+function showResult(result) {
+  resultKindEl.textContent = result.kind === "prize" ? "🎉 Prize!" : "Today's chore";
+  resultLabelEl.textContent = result.label;
+  resultOverlay.classList.remove("hidden");
+}
+
+document.getElementById("result-close").addEventListener("click", () => {
+  resultOverlay.classList.add("hidden");
+});
+
+document.getElementById("back-btn").addEventListener("click", () => {
+  state.selectedKid = null;
+  showScreen(kidSelectScreen);
+  loadKids();
+});
+
+document.getElementById("admin-link").addEventListener("click", () => {
+  window.location.href = "/admin";
+});
+
+spinBtn.addEventListener("click", spin);
+
+// ---------------- Hidden exit-kiosk gesture ----------------
+// Tap the top-left 60x60px corner 5 times within 3 seconds to bring up an
+// exit-kiosk confirmation. Calls a local-only helper (see pi-helper/) that
+// kills Chromium, since a web page has no way to do that itself.
+const KILL_SWITCH_URL = "http://localhost:8765/kill-kiosk";
+const TAP_COUNT_NEEDED = 5;
+const TAP_WINDOW_MS = 3000;
+let tapTimestamps = [];
+
+const exitTapZone = document.getElementById("exit-tap-zone");
+const exitConfirmOverlay = document.getElementById("exit-confirm-overlay");
+const exitError = document.getElementById("exit-error");
+
+exitTapZone.addEventListener("click", () => {
+  const now = Date.now();
+  tapTimestamps = tapTimestamps.filter((t) => now - t < TAP_WINDOW_MS);
+  tapTimestamps.push(now);
+  if (tapTimestamps.length >= TAP_COUNT_NEEDED) {
+    tapTimestamps = [];
+    exitError.classList.add("hidden");
+    exitConfirmOverlay.classList.remove("hidden");
+  }
+});
+
+document.getElementById("exit-cancel").addEventListener("click", () => {
+  exitConfirmOverlay.classList.add("hidden");
+});
+
+document.getElementById("exit-confirm").addEventListener("click", async () => {
+  try {
+    const res = await fetch(KILL_SWITCH_URL, { method: "POST" });
+    if (!res.ok) throw new Error("bad response");
+    // Chromium is about to be killed; nothing further to do.
+  } catch (e) {
+    exitError.classList.remove("hidden");
+  }
+});
+
+// ---------------- On-screen keyboard toggle ----------------
+// Talks to the same local-only helper as the exit gesture. Uses onboard's
+// D-Bus API rather than relying on Chromium's auto-show (which is
+// unreliable), so this button always works as long as onboard is running
+// in the background.
+document.getElementById("keyboard-toggle-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("keyboard-toggle-btn");
+  try {
+    const res = await fetch("http://localhost:8765/toggle-keyboard", { method: "POST" });
+    if (!res.ok) throw new Error("bad response");
+  } catch (e) {
+    // Briefly flash the button to signal failure without an intrusive alert.
+    btn.style.background = "rgba(214, 69, 69, 0.9)";
+    setTimeout(() => { btn.style.background = ""; }, 800);
+  }
+});
+
+async function init() {
+  await loadKids();
+  await loadWheelItems();
+  // refresh kid list periodically in case admin changes something
+  setInterval(loadKids, 30000);
+}
+
+init();

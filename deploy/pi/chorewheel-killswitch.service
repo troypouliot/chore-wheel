@@ -1,0 +1,13 @@
+[Unit]
+Description=Chore Wheel kiosk kill-switch helper (local only)
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/chore-wheel/pi-helper/kiosk_kill_switch.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
