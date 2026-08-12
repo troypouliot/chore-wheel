@@ -44,22 +44,6 @@ class ControlHandler(BaseHTTPRequestHandler):
         if self.path == "/kill-kiosk":
             subprocess.run(["pkill", "-9", "-f", "chromium"])
             self._respond(200)
-        elif self.path == "/toggle-keyboard":
-            result = subprocess.run(
-                [
-                    "dbus-send",
-                    "--type=method_call",
-                    "--dest=org.onboard.Onboard",
-                    "/org/onboard/Onboard/Keyboard",
-                    "org.onboard.Onboard.Keyboard.ToggleVisible",
-                ],
-                capture_output=True,
-            )
-            if result.returncode == 0:
-                self._respond(200)
-            else:
-                # Most likely cause: onboard isn't running in the background.
-                self._respond(500, result.stderr or b"onboard not reachable")
         else:
             self._respond(404, b"not found")
 

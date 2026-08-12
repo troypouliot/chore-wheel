@@ -250,7 +250,7 @@ async function loadSettings() {
       document.getElementById("prevent-repeat-checkbox").checked = !!data.prevent_repeat_chores;
       document.getElementById("guarantee-prize-checkbox").checked = !!data.guarantee_prize_per_week;
     }
-  } catch (e) {}
+  } catch (e) { }
 }
 
 document.getElementById("save-settings-btn").addEventListener("click", async () => {
@@ -305,17 +305,3 @@ if (!adminScreen.classList.contains("hidden")) {
   initAdmin();
 }
 
-// ---------------- On-screen keyboard toggle ----------------
-// Talks to the local-only helper on the Pi (see pi-helper/). Uses onboard's
-// D-Bus API rather than relying on Chromium's auto-show, which is
-// unreliable — this button always works as long as onboard is running.
-document.getElementById("keyboard-toggle-btn").addEventListener("click", async () => {
-  const btn = document.getElementById("keyboard-toggle-btn");
-  try {
-    const res = await fetch("http://localhost:8765/toggle-keyboard", { method: "POST" });
-    if (!res.ok) throw new Error("bad response");
-  } catch (e) {
-    btn.style.background = "#d64545";
-    setTimeout(() => { btn.style.background = ""; }, 800);
-  }
-});

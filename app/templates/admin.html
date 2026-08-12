@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chore Wheel — Admin</title>
-<link rel="stylesheet" href="/static/admin.css?v={{ v }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chore Wheel — Admin</title>
+  <link rel="stylesheet" href="/static/admin.css?v={{ v }}">
 </head>
+
 <body>
   <div id="login-screen" class="screen {{ 'hidden' if authed else '' }}">
     <div class="login-card">
@@ -40,7 +42,15 @@
           <button class="add-btn" data-add="kid">+ Add kid</button>
         </div>
         <table id="kids-table">
-          <thead><tr><th>Name</th><th>Spins/day</th><th>Color</th><th>Active</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Spins/day</th>
+              <th>Color</th>
+              <th>Active</th>
+              <th></th>
+            </tr>
+          </thead>
           <tbody></tbody>
         </table>
       </section>
@@ -51,7 +61,17 @@
           <button class="add-btn" data-add="item">+ Add item</button>
         </div>
         <table id="items-table">
-          <thead><tr><th>Label</th><th>Type</th><th>Target Kid</th><th>Weight</th><th>Color</th><th>Active</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th>Label</th>
+              <th>Type</th>
+              <th>Target Kid</th>
+              <th>Weight</th>
+              <th>Color</th>
+              <th>Active</th>
+              <th></th>
+            </tr>
+          </thead>
           <tbody></tbody>
         </table>
         <p class="hint">Weight sets the odds — an item with weight 3 is 3x as likely as one with weight 1.</p>
@@ -60,7 +80,14 @@
       <section id="tab-history" class="tab-panel">
         <h2>Recent spins</h2>
         <table id="history-table">
-          <thead><tr><th>When</th><th>Kid</th><th>Result</th><th>Type</th></tr></thead>
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Kid</th>
+              <th>Result</th>
+              <th>Type</th>
+            </tr>
+          </thead>
           <tbody></tbody>
         </table>
       </section>
@@ -105,8 +132,8 @@
     </div>
   </div>
 
-  <button id="keyboard-toggle-btn" title="Show/hide keyboard">⌨</button>
 
   <script src="/static/admin.js?v={{ v }}"></script>
 </body>
+
 </html>

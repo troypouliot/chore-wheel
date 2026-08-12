@@ -103,7 +103,7 @@ function drawWheel() {
     ctx.translate(cx, cy);
     ctx.rotate((start + end) / 2);
     ctx.textAlign = "right";
-    
+
     // Drop shadow on text
     ctx.fillStyle = "#ffffff";
     ctx.shadowColor = "rgba(0, 0, 0, 0.75)";
@@ -205,7 +205,7 @@ function animateToResult(result) {
   const pointerEl = document.getElementById("pointer");
   const duration = 5000;
   const startTime = performance.now();
-  
+
   let lastRot = startRotation;
   let pointerDeflection = 0;
   const sliceCount = state.wheelItems.length || 1;
@@ -322,22 +322,6 @@ document.getElementById("exit-confirm").addEventListener("click", async () => {
   }
 });
 
-// ---------------- On-screen keyboard toggle ----------------
-// Talks to the same local-only helper as the exit gesture. Uses onboard's
-// D-Bus API rather than relying on Chromium's auto-show (which is
-// unreliable), so this button always works as long as onboard is running
-// in the background.
-document.getElementById("keyboard-toggle-btn").addEventListener("click", async () => {
-  const btn = document.getElementById("keyboard-toggle-btn");
-  try {
-    const res = await fetch("http://localhost:8765/toggle-keyboard", { method: "POST" });
-    if (!res.ok) throw new Error("bad response");
-  } catch (e) {
-    // Briefly flash the button to signal failure without an intrusive alert.
-    btn.style.background = "rgba(214, 69, 69, 0.9)";
-    setTimeout(() => { btn.style.background = ""; }, 800);
-  }
-});
 
 async function init() {
   await loadKids();

@@ -1,14 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Chore Wheel</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/kiosk.css?v={{ v }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Chore Wheel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/static/kiosk.css?v={{ v }}">
 </head>
+
 <body>
   <div id="app">
     <div id="kid-select" class="screen active">
@@ -46,7 +50,6 @@
          confirmation. Not shown or hinted anywhere on purpose. -->
     <div id="exit-tap-zone"></div>
 
-    <button id="keyboard-toggle-btn" title="Show/hide keyboard">⌨</button>
 
     <div id="exit-confirm-overlay" class="overlay hidden">
       <div class="result-card">
@@ -64,4 +67,5 @@
 
   <script src="/static/kiosk.js?v={{ v }}"></script>
 </body>
+
 </html>
