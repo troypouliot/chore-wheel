@@ -2,7 +2,8 @@ import os
 import secrets
 import random
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Optional
 
 ASSET_VERSION = str(int(time.time()))  # changes on every server restart, forces browsers to refetch static files
 
@@ -75,15 +76,22 @@ def api_kids():
 
 
 @app.get("/api/wheel")
-def api_wheel():
+def api_wheel(kid_id: int | None = None):
     conn = db.get_conn()
-    items = conn.execute(
-        "SELECT * FROM wheel_items WHERE active = 1 ORDER BY sort_order, id"
-    ).fetchall()
+    if kid_id is not None:
+        items = conn.execute(
+            "SELECT * FROM wheel_items WHERE active = 1 AND (kid_id IS NULL OR kid_id = ?) ORDER BY sort_order, id",
+            (kid_id,),
+        ).fetchall()
+    else:
+        items = conn.execute(
+            "SELECT * FROM wheel_items WHERE active = 1 ORDER BY sort_order, id"
+        ).fetchall()
     conn.close()
     return [
         {
             "id": i["id"],
+            "kid_id": i["kid_id"],
             "label": i["label"],
             "kind": i["kind"],
             "weight": i["weight"],
@@ -114,10 +122,47 @@ def api_spin(payload: SpinRequest):
         conn.close()
         raise HTTPException(status_code=400, detail="No spins remaining today")
 
-    items = conn.execute("SELECT * FROM wheel_items WHERE active = 1").fetchall()
+    items = conn.execute(
+        "SELECT * FROM wheel_items WHERE active = 1 AND (kid_id IS NULL OR kid_id = ?)",
+        (kid["id"],),
+    ).fetchall()
     if not items:
         conn.close()
         raise HTTPException(status_code=400, detail="No wheel items configured")
+
+    prevent_repeat = db.get_setting("prevent_repeat_chores", "1") == "1"
+    guarantee_prize = db.get_setting("guarantee_prize_per_week", "1") == "1"
+
+    # Guaranteed Prize Per Week Logic:
+    # If enabled, check if the kid has received any prize in the last 7 days (or current calendar week).
+    # If today is late in the week (e.g. Sunday/6th day of week or after 5+ consecutive chore spins in the last 7 days),
+    # force the selection pool to prizes if available.
+    if guarantee_prize:
+        seven_days_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+        recent_prizes = conn.execute(
+            "SELECT COUNT(*) c FROM spins WHERE kid_id = ? AND kind = 'prize' AND spin_date >= ?",
+            (kid["id"], seven_days_ago),
+        ).fetchone()["c"]
+
+        if recent_prizes == 0:
+            recent_spins_count = conn.execute(
+                "SELECT COUNT(*) c FROM spins WHERE kid_id = ? AND spin_date >= ?",
+                (kid["id"], seven_days_ago),
+            ).fetchone()["c"]
+            # If kid has spun at least 4 times in 7 days without a prize, guarantee a prize now
+            prizes = [i for i in items if i["kind"] == "prize"]
+            if prizes and recent_spins_count >= 4:
+                items = prizes
+
+    if prevent_repeat and items:
+        last_spin = conn.execute(
+            "SELECT item_id, kind FROM spins WHERE kid_id = ? ORDER BY id DESC LIMIT 1",
+            (kid["id"],),
+        ).fetchone()
+        if last_spin and last_spin["kind"] == "chore" and last_spin["item_id"]:
+            filtered = [i for i in items if i["id"] != last_spin["item_id"]]
+            if filtered:
+                items = filtered
 
     weights = [max(1, i["weight"]) for i in items]
     chosen = random.choices(items, weights=weights, k=1)[0]
@@ -264,6 +309,7 @@ class WheelItemIn(BaseModel):
     weight: int = 1
     color: str = "#8e8e93"
     active: bool = True
+    kid_id: Optional[int] = None
 
 
 @app.get("/api/admin/wheel-items")
@@ -280,8 +326,8 @@ def admin_create_item(payload: WheelItemIn, _=Depends(require_admin)):
         raise HTTPException(status_code=400, detail="kind must be 'chore' or 'prize'")
     conn = db.get_conn()
     cur = conn.execute(
-        "INSERT INTO wheel_items (label, kind, weight, color, active) VALUES (?, ?, ?, ?, ?)",
-        (payload.label, payload.kind, payload.weight, payload.color, int(payload.active)),
+        "INSERT INTO wheel_items (label, kind, weight, color, active, kid_id) VALUES (?, ?, ?, ?, ?, ?)",
+        (payload.label, payload.kind, payload.weight, payload.color, int(payload.active), payload.kid_id),
     )
     conn.commit()
     new_id = cur.lastrowid
@@ -295,8 +341,8 @@ def admin_update_item(item_id: int, payload: WheelItemIn, _=Depends(require_admi
         raise HTTPException(status_code=400, detail="kind must be 'chore' or 'prize'")
     conn = db.get_conn()
     conn.execute(
-        "UPDATE wheel_items SET label = ?, kind = ?, weight = ?, color = ?, active = ? WHERE id = ?",
-        (payload.label, payload.kind, payload.weight, payload.color, int(payload.active), item_id),
+        "UPDATE wheel_items SET label = ?, kind = ?, weight = ?, color = ?, active = ?, kid_id = ? WHERE id = ?",
+        (payload.label, payload.kind, payload.weight, payload.color, int(payload.active), payload.kid_id, item_id),
     )
     conn.commit()
     conn.close()
@@ -331,3 +377,30 @@ def admin_history(_=Depends(require_admin), limit: int = 100):
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# Admin API: settings
+# ---------------------------------------------------------------------------
+
+class SettingsIn(BaseModel):
+    prevent_repeat_chores: bool
+    guarantee_prize_per_week: bool
+
+
+@app.get("/api/admin/settings")
+def admin_get_settings(_=Depends(require_admin)):
+    repeat_val = db.get_setting("prevent_repeat_chores", "1")
+    prize_val = db.get_setting("guarantee_prize_per_week", "1")
+    return {
+        "prevent_repeat_chores": repeat_val == "1",
+        "guarantee_prize_per_week": prize_val == "1",
+    }
+
+
+@app.post("/api/admin/settings")
+def admin_save_settings(payload: SettingsIn, _=Depends(require_admin)):
+    db.set_setting("prevent_repeat_chores", "1" if payload.prevent_repeat_chores else "0")
+    db.set_setting("guarantee_prize_per_week", "1" if payload.guarantee_prize_per_week else "0")
+    return {"ok": True}
+

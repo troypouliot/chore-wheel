@@ -130,16 +130,26 @@ async function deleteKid(id) {
 document.querySelector('[data-add="kid"]').addEventListener("click", () => editKid(null));
 
 // ---------------- Wheel items ----------------
+let cachedKids = [];
+
 async function loadItems() {
-  const res = await fetch("/api/admin/wheel-items");
-  const items = await res.json();
+  const [itemsRes, kidsRes] = await Promise.all([
+    fetch("/api/admin/wheel-items"),
+    fetch("/api/admin/kids"),
+  ]);
+  const items = await itemsRes.json();
+  cachedKids = await kidsRes.json();
+
   const tbody = document.querySelector("#items-table tbody");
   tbody.innerHTML = "";
   items.forEach((item) => {
+    const targetKid = cachedKids.find((k) => k.id === item.kid_id);
+    const targetLabel = targetKid ? `🎯 ${targetKid.name}` : "🌐 Global (All Kids)";
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${item.label}</td>
       <td><span class="pill ${item.kind}">${item.kind}</span></td>
+      <td>${targetLabel}</td>
       <td>${item.weight}</td>
       <td><span class="swatch" style="background:${item.color}"></span></td>
       <td>${item.active ? "Yes" : "No"}</td>
@@ -154,6 +164,13 @@ async function loadItems() {
 }
 
 function itemFormHtml(item) {
+  const kidOptions = cachedKids
+    .map(
+      (k) =>
+        `<option value="${k.id}" ${item && item.kid_id == k.id ? "selected" : ""}>Target: ${k.name}</option>`
+    )
+    .join("");
+
   return `
     <label>Label</label>
     <input type="text" id="f-label" value="${item ? item.label : ""}">
@@ -161,6 +178,11 @@ function itemFormHtml(item) {
     <select id="f-kind">
       <option value="chore" ${item && item.kind === "chore" ? "selected" : ""}>Chore</option>
       <option value="prize" ${item && item.kind === "prize" ? "selected" : ""}>Prize</option>
+    </select>
+    <label>Target Kid</label>
+    <select id="f-kid-id">
+      <option value="" ${!item || item.kid_id == null ? "selected" : ""}>All Kids (Global)</option>
+      ${kidOptions}
     </select>
     <label>Weight (relative odds)</label>
     <input type="number" id="f-weight" min="1" value="${item ? item.weight : 1}">
@@ -173,14 +195,20 @@ function itemFormHtml(item) {
   `;
 }
 
-function editItem(item) {
+async function editItem(item) {
+  if (!cachedKids.length) {
+    const res = await fetch("/api/admin/kids");
+    cachedKids = await res.json();
+  }
   openModal(item ? "Edit item" : "Add item", itemFormHtml(item), async () => {
+    const rawKidId = document.getElementById("f-kid-id").value;
     const payload = {
       label: document.getElementById("f-label").value,
       kind: document.getElementById("f-kind").value,
       weight: parseInt(document.getElementById("f-weight").value, 10),
       color: document.getElementById("f-color").value,
       active: document.getElementById("f-active").checked,
+      kid_id: rawKidId ? parseInt(rawKidId, 10) : null,
     };
     if (item) {
       await fetch(`/api/admin/wheel-items/${item.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -214,6 +242,36 @@ async function loadHistory() {
 }
 
 // ---------------- Settings ----------------
+async function loadSettings() {
+  try {
+    const res = await fetch("/api/admin/settings");
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById("prevent-repeat-checkbox").checked = !!data.prevent_repeat_chores;
+      document.getElementById("guarantee-prize-checkbox").checked = !!data.guarantee_prize_per_week;
+    }
+  } catch (e) {}
+}
+
+document.getElementById("save-settings-btn").addEventListener("click", async () => {
+  const prevent_repeat_chores = document.getElementById("prevent-repeat-checkbox").checked;
+  const guarantee_prize_per_week = document.getElementById("guarantee-prize-checkbox").checked;
+  const msg = document.getElementById("settings-msg");
+  const res = await fetch("/api/admin/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prevent_repeat_chores, guarantee_prize_per_week }),
+  });
+  if (res.ok) {
+    msg.textContent = "Settings saved successfully.";
+    msg.style.color = "#2e8b57";
+    setTimeout(() => { msg.textContent = ""; }, 3000);
+  } else {
+    msg.textContent = "Failed to save settings.";
+    msg.style.color = "#d64545";
+  }
+});
+
 document.getElementById("change-password-btn").addEventListener("click", async () => {
   const current_password = document.getElementById("current-password").value;
   const new_password = document.getElementById("new-password").value;
@@ -228,6 +286,7 @@ document.getElementById("change-password-btn").addEventListener("click", async (
     msg.style.color = "#2e8b57";
     document.getElementById("current-password").value = "";
     document.getElementById("new-password").value = "";
+    setTimeout(() => { msg.textContent = ""; }, 3000);
   } else {
     const err = await res.json();
     msg.textContent = err.detail || "Could not update password.";
@@ -239,6 +298,7 @@ document.getElementById("change-password-btn").addEventListener("click", async (
 function initAdmin() {
   loadKids();
   loadItems();
+  loadSettings();
 }
 
 if (!adminScreen.classList.contains("hidden")) {

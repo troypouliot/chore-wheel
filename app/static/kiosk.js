@@ -29,8 +29,9 @@ async function loadKids() {
   renderKidList();
 }
 
-async function loadWheelItems() {
-  const res = await fetch("/api/wheel");
+async function loadWheelItems(kidId = null) {
+  const url = kidId ? `/api/wheel?kid_id=${kidId}` : "/api/wheel";
+  const res = await fetch(url);
   state.wheelItems = await res.json();
   drawWheel();
 }
@@ -47,10 +48,11 @@ function renderKidList() {
   });
 }
 
-function selectKid(kid) {
+async function selectKid(kid) {
   state.selectedKid = kid;
   kidBannerEl.textContent = kid.name;
   updateSpinsLeftLabel();
+  await loadWheelItems(kid.id);
   showScreen(wheelScreen);
 }
 
@@ -65,10 +67,16 @@ function drawWheel() {
   const size = canvas.width;
   const cx = size / 2;
   const cy = size / 2;
-  const radius = size / 2;
+  const radius = size / 2 - 14;
   const totalWeight = items.reduce((s, i) => s + Math.max(1, i.weight), 0) || 1;
 
   ctx.clearRect(0, 0, size, size);
+
+  // Outer rim shadow & ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, size / 2 - 2, 0, Math.PI * 2);
+  ctx.fillStyle = "#1b1e28";
+  ctx.fill();
 
   let angle = -Math.PI / 2; // start at top
   state._segments = [];
@@ -77,6 +85,7 @@ function drawWheel() {
     const start = angle;
     const end = angle + slice;
 
+    // Draw segment slice
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, radius, start, end);
@@ -84,19 +93,62 @@ function drawWheel() {
     ctx.fillStyle = item.color || "#8e8e93";
     ctx.fill();
 
-    // label
+    // Segment divider lines
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+    ctx.stroke();
+
+    // Label styling
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate((start + end) / 2);
     ctx.textAlign = "right";
-    ctx.fillStyle = "rgba(0,0,0,0.75)";
-    ctx.font = "bold 20px -apple-system, sans-serif";
-    ctx.fillText(truncateLabel(item.label), radius - 24, 6);
+    
+    // Drop shadow on text
+    ctx.fillStyle = "#ffffff";
+    ctx.shadowColor = "rgba(0, 0, 0, 0.75)";
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 2;
+    ctx.font = "bold 21px 'Outfit', -apple-system, sans-serif";
+    ctx.fillText(truncateLabel(item.label), radius - 28, 7);
     ctx.restore();
 
     state._segments.push({ start, end, mid: (start + end) / 2, item });
     angle = end;
   });
+
+  // Outer border ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+  ctx.stroke();
+
+  // Center Hub Cap
+  ctx.beginPath();
+  ctx.arc(cx, cy, 54, 0, Math.PI * 2);
+  const grad = ctx.createRadialGradient(cx - 10, cy - 10, 5, cx, cy, 54);
+  grad.addColorStop(0, "#2d3242");
+  grad.addColorStop(1, "#141720");
+  ctx.fillStyle = grad;
+  ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+  ctx.shadowBlur = 12;
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#4f8ef7";
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Hub Text
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 13px 'Fredoka', sans-serif";
+  ctx.fillText("CHORE", cx, cy - 7);
+  ctx.fillStyle = "#4f8ef7";
+  ctx.font = "bold 12px 'Fredoka', sans-serif";
+  ctx.fillText("WHEEL", cx, cy + 9);
 }
 
 function truncateLabel(label) {
@@ -142,30 +194,65 @@ function animateToResult(result) {
   const seg = state._segments.find((s) => s.item.id === result.id);
   if (!seg) return;
 
-  // seg.mid is in canvas angle terms, where 0deg points right and -90deg
-  // points to the physical top of the wheel (that's where drawing starts).
-  // Convert it to "degrees clockwise from the pointer at the top" before
-  // computing how far to rotate, or every result lands 90 degrees off from
-  // where the wheel visually stops.
   const segMidDeg = (seg.mid * 180) / Math.PI;
   const segMidFromTop = segMidDeg + 90;
-  const targetDeg = -segMidFromTop; // rotate wheel backward by that amount to bring it under the pointer
-  const extraSpins = 5 + Math.floor(Math.random() * 3); // 5-7 full spins for drama
-  const finalRotation = state.currentRotation + extraSpins * 360 + normalizeDelta(state.currentRotation, targetDeg);
+  const targetDeg = -segMidFromTop;
+  const extraSpins = 5 + Math.floor(Math.random() * 3);
+  const startRotation = state.currentRotation;
+  const finalRotation = startRotation + extraSpins * 360 + normalizeDelta(startRotation, targetDeg);
+  const totalDelta = finalRotation - startRotation;
 
-  canvas.style.transform = `rotate(${finalRotation}deg)`;
-  state.currentRotation = finalRotation;
+  const pointerEl = document.getElementById("pointer");
+  const duration = 5000;
+  const startTime = performance.now();
+  
+  let lastRot = startRotation;
+  let pointerDeflection = 0;
+  const sliceCount = state.wheelItems.length || 1;
+  const approxSliceDeg = 360 / sliceCount;
 
-  setTimeout(() => {
-    showResult(result);
-    state.spinning = false;
-    updateSpinsLeftLabel();
-    renderKidList();
-  }, 5200);
+  function easeOutQuart(x) {
+    return 1 - Math.pow(1 - x, 4);
+  }
+
+  function frame(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(1, elapsed / duration);
+    const eased = easeOutQuart(progress);
+    const currentRot = startRotation + totalDelta * eased;
+
+    canvas.style.transform = `rotate(${currentRot}deg)`;
+
+    // Check pointer tick deflection
+    if (Math.floor(currentRot / approxSliceDeg) !== Math.floor(lastRot / approxSliceDeg)) {
+      const speedFactor = Math.max(0.2, 1 - progress);
+      pointerDeflection = -18 * speedFactor;
+    } else {
+      pointerDeflection *= 0.78;
+    }
+
+    if (pointerEl) {
+      pointerEl.style.transform = `rotate(${pointerDeflection}deg)`;
+    }
+
+    lastRot = currentRot;
+
+    if (progress < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      state.currentRotation = finalRotation;
+      if (pointerEl) pointerEl.style.transform = "rotate(0deg)";
+      showResult(result);
+      state.spinning = false;
+      updateSpinsLeftLabel();
+      renderKidList();
+    }
+  }
+
+  requestAnimationFrame(frame);
 }
 
 function normalizeDelta(current, target) {
-  // amount to add to current so it aligns with target modulo 360, minimal positive
   const currentMod = ((current % 360) + 360) % 360;
   const targetMod = ((target % 360) + 360) % 360;
   let delta = targetMod - currentMod;
@@ -174,7 +261,9 @@ function normalizeDelta(current, target) {
 }
 
 function showResult(result) {
-  resultKindEl.textContent = result.kind === "prize" ? "🎉 Prize!" : "Today's chore";
+  const isPrize = result.kind === "prize";
+  resultKindEl.textContent = isPrize ? "🎉 PRIZE WINNER!" : "TODAY'S CHORE";
+  resultKindEl.className = "result-kind " + (isPrize ? "prize-header" : "chore-header");
   resultLabelEl.textContent = result.label;
   resultOverlay.classList.remove("hidden");
 }

@@ -4,14 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Chore Wheel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/kiosk.css?v={{ v }}">
 </head>
 <body>
   <div id="app">
     <div id="kid-select" class="screen active">
+      <div class="header-badge">WELCOME</div>
       <h1>Who's spinning?</h1>
       <div id="kid-list" class="kid-list"></div>
-      <button id="admin-link" class="ghost-btn">Admin</button>
+      <button id="admin-link" class="ghost-btn">⚙ Admin</button>
     </div>
 
     <div id="wheel-screen" class="screen">
@@ -22,9 +26,12 @@
       </div>
       <div class="wheel-wrap">
         <canvas id="wheel" width="600" height="600"></canvas>
-        <div id="pointer"></div>
+        <div id="pointer-wrap">
+          <div id="pointer-peg"></div>
+          <div id="pointer"></div>
+        </div>
       </div>
-      <button id="spin-btn">SPIN</button>
+      <button id="spin-btn">SPIN!</button>
     </div>
 
     <div id="result-overlay" class="overlay hidden">

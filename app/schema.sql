@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS kids (
 
 CREATE TABLE IF NOT EXISTS wheel_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kid_id INTEGER REFERENCES kids(id) ON DELETE CASCADE, -- NULL means global for all kids
     label TEXT NOT NULL,
     kind TEXT NOT NULL CHECK (kind IN ('chore', 'prize')),
     weight INTEGER NOT NULL DEFAULT 1,      -- relative odds

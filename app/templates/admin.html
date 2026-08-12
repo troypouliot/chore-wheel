@@ -51,7 +51,7 @@
           <button class="add-btn" data-add="item">+ Add item</button>
         </div>
         <table id="items-table">
-          <thead><tr><th>Label</th><th>Type</th><th>Weight</th><th>Color</th><th>Active</th><th></th></tr></thead>
+          <thead><tr><th>Label</th><th>Type</th><th>Target Kid</th><th>Weight</th><th>Color</th><th>Active</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
         <p class="hint">Weight sets the odds — an item with weight 3 is 3x as likely as one with weight 1.</p>
@@ -67,12 +67,28 @@
 
       <section id="tab-settings" class="tab-panel">
         <h2>Settings</h2>
-        <div class="settings-card">
-          <h3>Change admin password</h3>
-          <input id="current-password" type="password" placeholder="Current password">
-          <input id="new-password" type="password" placeholder="New password">
-          <button id="change-password-btn">Update password</button>
-          <p id="password-msg" class="hint"></p>
+        <div class="settings-grid">
+          <div class="settings-card">
+            <h3>Wheel &amp; Fairness</h3>
+            <div class="checkbox-row margin-bottom">
+              <input id="prevent-repeat-checkbox" type="checkbox">
+              <label for="prevent-repeat-checkbox">Prevent consecutive duplicate chores for a kid</label>
+            </div>
+            <div class="checkbox-row margin-bottom">
+              <input id="guarantee-prize-checkbox" type="checkbox">
+              <label for="guarantee-prize-checkbox">Guarantee at least 1 prize per week for each kid</label>
+            </div>
+            <button id="save-settings-btn">Save wheel settings</button>
+            <p id="settings-msg" class="hint"></p>
+          </div>
+
+          <div class="settings-card">
+            <h3>Change admin password</h3>
+            <input id="current-password" type="password" placeholder="Current password">
+            <input id="new-password" type="password" placeholder="New password">
+            <button id="change-password-btn">Update password</button>
+            <p id="password-msg" class="hint"></p>
+          </div>
         </div>
       </section>
     </main>

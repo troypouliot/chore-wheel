@@ -140,18 +140,42 @@ th { color: #8a8f9c; font-weight: 600; font-size: 0.8rem; text-transform: upperc
 .pill.chore { background: #eef0f3; color: #5a5f6d; }
 .pill.prize { background: #fff4d6; color: #a67c00; }
 
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+}
 .settings-card {
   background: white;
   padding: 24px;
-  border-radius: 12px;
-  max-width: 400px;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+  border: 1px solid #eef0f4;
 }
-.settings-card input {
+.settings-card h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 1.05rem;
+}
+.settings-card input[type=text], .settings-card input[type=password] {
   width: 100%;
-  padding: 10px;
+  padding: 10px 14px;
   margin-bottom: 12px;
   border-radius: 8px;
   border: 1px solid #d8dae0;
+  font-size: 0.95rem;
+}
+.margin-bottom { margin-bottom: 18px; }
+#save-settings-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background: #4f8ef7;
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .overlay {

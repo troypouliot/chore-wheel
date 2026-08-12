@@ -25,6 +25,12 @@ def init_db():
         conn.executescript(f.read())
     conn.commit()
 
+    # Migration: add kid_id column to wheel_items if upgrading existing db
+    columns = [row[1] for row in conn.execute("PRAGMA table_info(wheel_items)").fetchall()]
+    if "kid_id" not in columns:
+        conn.execute("ALTER TABLE wheel_items ADD COLUMN kid_id INTEGER REFERENCES kids(id) ON DELETE CASCADE")
+        conn.commit()
+
     # Seed default settings (session secret + admin password) if missing
     cur = conn.execute("SELECT value FROM settings WHERE key = 'admin_password_hash'")
     if cur.fetchone() is None:
@@ -37,6 +43,16 @@ def init_db():
         conn.execute(
             "INSERT INTO settings (key, value) VALUES ('session_secret', ?)",
             (secrets.token_hex(32),),
+        )
+    cur = conn.execute("SELECT value FROM settings WHERE key = 'prevent_repeat_chores'")
+    if cur.fetchone() is None:
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES ('prevent_repeat_chores', '1')",
+        )
+    cur = conn.execute("SELECT value FROM settings WHERE key = 'guarantee_prize_per_week'")
+    if cur.fetchone() is None:
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES ('guarantee_prize_per_week', '1')",
         )
     conn.commit()
 
