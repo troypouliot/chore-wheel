@@ -31,6 +31,13 @@ def init_db():
         conn.execute("ALTER TABLE wheel_items ADD COLUMN kid_id INTEGER REFERENCES kids(id) ON DELETE CASCADE")
         conn.commit()
 
+    # Migration: transfer legacy single kid_id values into wheel_item_kids junction table
+    conn.execute(
+        "INSERT OR IGNORE INTO wheel_item_kids (wheel_item_id, kid_id) "
+        "SELECT id, kid_id FROM wheel_items WHERE kid_id IS NOT NULL"
+    )
+    conn.commit()
+
     # Seed default settings (session secret + admin password) if missing
     cur = conn.execute("SELECT value FROM settings WHERE key = 'admin_password_hash'")
     if cur.fetchone() is None:

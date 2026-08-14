@@ -177,6 +177,55 @@ th {
   text-transform: uppercase;
 }
 
+th.sortable-th {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s, background 0.15s;
+}
+
+th.sortable-th:hover {
+  color: #4f8ef7;
+  background: #f8fafc;
+}
+
+th.sortable-th.active-sort {
+  color: #4f8ef7;
+  font-weight: 700;
+}
+
+.sort-icon {
+  font-size: 0.75rem;
+  color: #4f8ef7;
+}
+
+.kid-checkboxes-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  background: #f8fafc;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.checkbox-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.88rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-pill input[type="checkbox"] {
+  cursor: pointer;
+}
+
 .swatch {
   display: inline-block;
   width: 18px;

@@ -131,20 +131,69 @@ document.querySelector('[data-add="kid"]').addEventListener("click", () => editK
 
 // ---------------- Wheel items ----------------
 let cachedKids = [];
+let cachedItems = [];
+let itemSortColumn = "kind"; // default sort by type
+let itemSortAsc = true;
 
 async function loadItems() {
   const [itemsRes, kidsRes] = await Promise.all([
     fetch("/api/admin/wheel-items"),
     fetch("/api/admin/kids"),
   ]);
-  const items = await itemsRes.json();
+  cachedItems = await itemsRes.json();
   cachedKids = await kidsRes.json();
 
+  renderItemsTable();
+}
+
+function getTargetLabel(item) {
+  const kidIds = item.kid_ids || (item.kid_id ? [item.kid_id] : []);
+  if (!kidIds.length || (cachedKids.length > 0 && kidIds.length === cachedKids.length)) {
+    return "🌐 Global (All Kids)";
+  }
+  const names = kidIds
+    .map((id) => cachedKids.find((k) => k.id === id)?.name)
+    .filter(Boolean);
+  return names.length ? `🎯 ${names.join(", ")}` : "🌐 Global (All Kids)";
+}
+
+function renderItemsTable() {
   const tbody = document.querySelector("#items-table tbody");
   tbody.innerHTML = "";
-  items.forEach((item) => {
-    const targetKid = cachedKids.find((k) => k.id === item.kid_id);
-    const targetLabel = targetKid ? `🎯 ${targetKid.name}` : "🌐 Global (All Kids)";
+
+  // Sort items
+  const sorted = [...cachedItems].sort((a, b) => {
+    let valA = a[itemSortColumn];
+    let valB = b[itemSortColumn];
+
+    if (itemSortColumn === "target") {
+      valA = getTargetLabel(a);
+      valB = getTargetLabel(b);
+    }
+
+    if (typeof valA === "string") {
+      const cmp = valA.localeCompare(valB);
+      return itemSortAsc ? cmp : -cmp;
+    }
+    if (valA < valB) return itemSortAsc ? -1 : 1;
+    if (valA > valB) return itemSortAsc ? 1 : -1;
+    return 0;
+  });
+
+  // Update header indicators
+  document.querySelectorAll("#items-table th.sortable-th").forEach((th) => {
+    const icon = th.querySelector(".sort-icon");
+    if (th.dataset.sort === itemSortColumn) {
+      icon.textContent = itemSortAsc ? " ▲" : " ▼";
+      th.classList.add("active-sort");
+    } else {
+      icon.textContent = "";
+      th.classList.remove("active-sort");
+    }
+  });
+
+  sorted.forEach((item) => {
+    const targetLabel = getTargetLabel(item);
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${item.label}</td>
@@ -163,11 +212,29 @@ async function loadItems() {
   });
 }
 
+// Header click listeners for table sorting
+document.querySelectorAll("#items-table th.sortable-th").forEach((th) => {
+  th.addEventListener("click", () => {
+    const col = th.dataset.sort;
+    if (itemSortColumn === col) {
+      itemSortAsc = !itemSortAsc;
+    } else {
+      itemSortColumn = col;
+      itemSortAsc = true;
+    }
+    renderItemsTable();
+  });
+});
+
 function itemFormHtml(item) {
-  const kidOptions = cachedKids
+  const targetKidIds = item ? (item.kid_ids || (item.kid_id ? [item.kid_id] : [])) : [];
+  const kidCheckboxes = cachedKids
     .map(
-      (k) =>
-        `<option value="${k.id}" ${item && item.kid_id == k.id ? "selected" : ""}>Target: ${k.name}</option>`
+      (k) => `
+      <label class="checkbox-pill">
+        <input type="checkbox" name="f-target-kids" value="${k.id}" ${targetKidIds.includes(k.id) ? "checked" : ""}>
+        <span class="swatch" style="background:${k.color}"></span> ${k.name}
+      </label>`
     )
     .join("");
 
@@ -179,11 +246,11 @@ function itemFormHtml(item) {
       <option value="chore" ${item && item.kind === "chore" ? "selected" : ""}>Chore</option>
       <option value="prize" ${item && item.kind === "prize" ? "selected" : ""}>Prize</option>
     </select>
-    <label>Target Kid</label>
-    <select id="f-kid-id">
-      <option value="" ${!item || item.kid_id == null ? "selected" : ""}>All Kids (Global)</option>
-      ${kidOptions}
-    </select>
+    <label>Target Kids</label>
+    <div class="kid-checkboxes-grid">
+      ${kidCheckboxes}
+    </div>
+    <p class="hint" style="margin-top:4px">Leave all unchecked for Global (All Kids).</p>
     <label>Weight (relative odds)</label>
     <input type="number" id="f-weight" min="1" value="${item ? item.weight : 1}">
     <label>Color</label>
@@ -201,14 +268,17 @@ async function editItem(item) {
     cachedKids = await res.json();
   }
   openModal(item ? "Edit item" : "Add item", itemFormHtml(item), async () => {
-    const rawKidId = document.getElementById("f-kid-id").value;
+    const selectedKidIds = Array.from(document.querySelectorAll('input[name="f-target-kids"]:checked')).map((cb) =>
+      parseInt(cb.value, 10)
+    );
     const payload = {
       label: document.getElementById("f-label").value,
       kind: document.getElementById("f-kind").value,
       weight: parseInt(document.getElementById("f-weight").value, 10),
       color: document.getElementById("f-color").value,
       active: document.getElementById("f-active").checked,
-      kid_id: rawKidId ? parseInt(rawKidId, 10) : null,
+      kid_ids: selectedKidIds,
+      kid_id: selectedKidIds.length === 1 ? selectedKidIds[0] : null,
     };
     if (item) {
       await fetch(`/api/admin/wheel-items/${item.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });

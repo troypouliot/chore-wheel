@@ -80,8 +80,16 @@ def api_wheel(kid_id: int | None = None):
     conn = db.get_conn()
     if kid_id is not None:
         items = conn.execute(
-            "SELECT * FROM wheel_items WHERE active = 1 AND (kid_id IS NULL OR kid_id = ?) ORDER BY sort_order, id",
-            (kid_id,),
+            """
+            SELECT * FROM wheel_items
+            WHERE active = 1 AND (
+                (id NOT IN (SELECT wheel_item_id FROM wheel_item_kids) AND kid_id IS NULL)
+                OR id IN (SELECT wheel_item_id FROM wheel_item_kids WHERE kid_id = ?)
+                OR kid_id = ?
+            )
+            ORDER BY sort_order, id
+            """,
+            (kid_id, kid_id),
         ).fetchall()
     else:
         items = conn.execute(
@@ -123,8 +131,15 @@ def api_spin(payload: SpinRequest):
         raise HTTPException(status_code=400, detail="No spins remaining today")
 
     items = conn.execute(
-        "SELECT * FROM wheel_items WHERE active = 1 AND (kid_id IS NULL OR kid_id = ?)",
-        (kid["id"],),
+        """
+        SELECT * FROM wheel_items
+        WHERE active = 1 AND (
+            (id NOT IN (SELECT wheel_item_id FROM wheel_item_kids) AND kid_id IS NULL)
+            OR id IN (SELECT wheel_item_id FROM wheel_item_kids WHERE kid_id = ?)
+            OR kid_id = ?
+        )
+        """,
+        (kid["id"], kid["id"]),
     ).fetchall()
     if not items:
         conn.close()
@@ -310,14 +325,23 @@ class WheelItemIn(BaseModel):
     color: str = "#8e8e93"
     active: bool = True
     kid_id: Optional[int] = None
+    kid_ids: Optional[list[int]] = []
 
 
 @app.get("/api/admin/wheel-items")
 def admin_list_items(_=Depends(require_admin)):
     conn = db.get_conn()
     items = conn.execute("SELECT * FROM wheel_items ORDER BY sort_order, id").fetchall()
+    result = []
+    for i in items:
+        d = dict(i)
+        rows = conn.execute("SELECT kid_id FROM wheel_item_kids WHERE wheel_item_id = ?", (i["id"],)).fetchall()
+        d["kid_ids"] = [r["kid_id"] for r in rows]
+        if not d["kid_ids"] and d["kid_id"] is not None:
+            d["kid_ids"] = [d["kid_id"]]
+        result.append(d)
     conn.close()
-    return [dict(i) for i in items]
+    return result
 
 
 @app.post("/api/admin/wheel-items")
@@ -325,12 +349,19 @@ def admin_create_item(payload: WheelItemIn, _=Depends(require_admin)):
     if payload.kind not in ("chore", "prize"):
         raise HTTPException(status_code=400, detail="kind must be 'chore' or 'prize'")
     conn = db.get_conn()
+    primary_kid = payload.kid_ids[0] if payload.kid_ids and len(payload.kid_ids) == 1 else payload.kid_id
     cur = conn.execute(
         "INSERT INTO wheel_items (label, kind, weight, color, active, kid_id) VALUES (?, ?, ?, ?, ?, ?)",
-        (payload.label, payload.kind, payload.weight, payload.color, int(payload.active), payload.kid_id),
+        (payload.label, payload.kind, payload.weight, payload.color, int(payload.active), primary_kid),
     )
-    conn.commit()
     new_id = cur.lastrowid
+    if payload.kid_ids:
+        for k_id in payload.kid_ids:
+            conn.execute(
+                "INSERT OR IGNORE INTO wheel_item_kids (wheel_item_id, kid_id) VALUES (?, ?)",
+                (new_id, k_id),
+            )
+    conn.commit()
     conn.close()
     return {"id": new_id}
 
@@ -340,10 +371,18 @@ def admin_update_item(item_id: int, payload: WheelItemIn, _=Depends(require_admi
     if payload.kind not in ("chore", "prize"):
         raise HTTPException(status_code=400, detail="kind must be 'chore' or 'prize'")
     conn = db.get_conn()
+    primary_kid = payload.kid_ids[0] if payload.kid_ids and len(payload.kid_ids) == 1 else payload.kid_id
     conn.execute(
         "UPDATE wheel_items SET label = ?, kind = ?, weight = ?, color = ?, active = ?, kid_id = ? WHERE id = ?",
-        (payload.label, payload.kind, payload.weight, payload.color, int(payload.active), payload.kid_id, item_id),
+        (payload.label, payload.kind, payload.weight, payload.color, int(payload.active), primary_kid, item_id),
     )
+    conn.execute("DELETE FROM wheel_item_kids WHERE wheel_item_id = ?", (item_id,))
+    if payload.kid_ids:
+        for k_id in payload.kid_ids:
+            conn.execute(
+                "INSERT OR IGNORE INTO wheel_item_kids (wheel_item_id, kid_id) VALUES (?, ?)",
+                (item_id, k_id),
+            )
     conn.commit()
     conn.close()
     return {"ok": True}
