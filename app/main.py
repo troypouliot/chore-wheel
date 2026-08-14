@@ -43,7 +43,7 @@ def require_admin(request: Request):
 # Kiosk-facing pages / API
 # ---------------------------------------------------------------------------
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def kiosk_page(request: Request):
     return templates.TemplateResponse("kiosk.html", {"request": request, "v": ASSET_VERSION})
 

@@ -18,8 +18,7 @@ ExecStart=/usr/bin/chromium --kiosk --app=http://192.168.0.10:8000/ \
   --noerrdialogs --disable-infobars --no-first-run --disable-translate \
   --check-for-update-interval=31536000 --disable-pinch \
   --overscroll-history-navigation=0 --password-store=basic \
-  --disable-session-crashed-bubble --disable-gpu \
-  --start-maximized
+  --disable-session-crashed-bubble --start-maximized
 # Auto-restart is OFF so using the kill button exits Chromium without auto-restarting.
 # Use the desktop shortcut to relaunch when ready.
 Restart=no
