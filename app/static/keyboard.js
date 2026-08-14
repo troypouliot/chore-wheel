@@ -36,9 +36,8 @@
     keyboardEl.className = "vk-container hidden";
     keyboardEl.setAttribute("aria-hidden", "true");
 
-    // Prevent clicking keys from stealing focus from active input
+    // Prevent clicking container from stealing focus from active input
     keyboardEl.addEventListener("mousedown", (e) => e.preventDefault());
-    keyboardEl.addEventListener("touchstart", (e) => e.preventDefault());
 
     document.body.appendChild(keyboardEl);
     renderKeyboard();
@@ -132,14 +131,21 @@
     html += `</div>`;
     keyboardEl.innerHTML = html;
 
-    // Attach button handlers
+    // Attach button handlers for both pointerdown (touch/mouse) and click
     keyboardEl.querySelectorAll(".vk-key, .vk-close-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
+      let fired = false;
+      const onPress = (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (fired) return;
+        fired = true;
+        setTimeout(() => { fired = false; }, 120);
         const action = btn.dataset.key || btn.dataset.action;
         handleKeyPress(action);
-      });
+      };
+
+      btn.addEventListener("pointerdown", onPress);
+      btn.addEventListener("click", onPress);
     });
   }
 
@@ -154,41 +160,51 @@
     if (key === "shift") {
       isShift = !isShift;
       renderKeyboard();
+      if (activeInput) activeInput.focus();
       return;
     }
 
     if (key === "sym") {
       isSymbols = true;
       renderKeyboard();
+      if (activeInput) activeInput.focus();
       return;
     }
 
     if (key === "abc") {
       isSymbols = false;
       renderKeyboard();
+      if (activeInput) activeInput.focus();
       return;
     }
 
-    const start = activeInput.selectionStart ?? activeInput.value.length;
-    const end = activeInput.selectionEnd ?? activeInput.value.length;
-    let val = activeInput.value;
+    let start = activeInput.value ? activeInput.value.length : 0;
+    let end = start;
+    try {
+      if (typeof activeInput.selectionStart === "number") {
+        start = activeInput.selectionStart;
+        end = activeInput.selectionEnd;
+      }
+    } catch (e) { }
+
+    let val = activeInput.value || "";
 
     if (key === "backspace") {
       if (start === end && start > 0) {
         val = val.substring(0, start - 1) + val.substring(start);
         activeInput.value = val;
-        activeInput.setSelectionRange(start - 1, start - 1);
+        try { activeInput.setSelectionRange(start - 1, start - 1); } catch (e) { }
       } else if (start !== end) {
         val = val.substring(0, start) + val.substring(end);
         activeInput.value = val;
-        activeInput.setSelectionRange(start, start);
+        try { activeInput.setSelectionRange(start, start); } catch (e) { }
       }
     } else {
       const charToAdd = key === "space" ? " " : key === "enter" ? "" : key;
       val = val.substring(0, start) + charToAdd + val.substring(end);
       activeInput.value = val;
       if (key !== "enter") {
-        activeInput.setSelectionRange(start + charToAdd.length, start + charToAdd.length);
+        try { activeInput.setSelectionRange(start + charToAdd.length, start + charToAdd.length); } catch (e) { }
       }
     }
 
@@ -200,10 +216,15 @@
       // Dispatch Enter keydown event
       activeInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", keyCode: 13, bubbles: true }));
       hideKeyboard();
-    } else if (isShift) {
-      // Auto-turn off shift after one letter tap
-      isShift = false;
-      renderKeyboard();
+    } else {
+      if (isShift) {
+        // Auto-turn off shift after one letter tap
+        isShift = false;
+        renderKeyboard();
+      }
+      if (activeInput) {
+        activeInput.focus();
+      }
     }
   }
 
