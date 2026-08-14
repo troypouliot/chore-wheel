@@ -1,33 +1,26 @@
 [Unit]
 Description=Chore Wheel kiosk browser
-After=graphical.target network-online.target
-Wants=network-online.target
+After=graphical.target network-online.target NetworkManager-wait-online.service
+Wants=network-online.target NetworkManager-wait-online.service
 
 [Service]
 Type=simple
 User=pi
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/pi/.Xauthority
-# Give the network a moment to come up on boot before hitting the server
-ExecStartPre=/bin/sleep 8
+# Wait until the home server is actually reachable over network before launching Chromium
+ExecStartPre=/bin/sh -c 'until curl -s --connect-timeout 2 http://192.168.0.10:8000/ > /dev/null; do sleep 2; done'
 # Replace CHOREWHEEL_SERVER_IP below with your home server's LAN IP or
 # hostname (e.g. http://192.168.1.50:8000/ or http://homeserver.local:8000/).
 # The Pi no longer runs the backend itself — it just displays this page.
-ExecStart=/usr/bin/chromium --kiosk --noerrdialogs --disable-infobars \
-  --no-first-run --disable-translate --check-for-update-interval=31536000 \
-  --disable-pinch --overscroll-history-navigation=0 \
-  --password-store=basic \
-  http://192.168.0.10:8000/
-# Auto-restart is deliberately OFF right now — use the "Restart Chore Wheel"
-# desktop shortcut to relaunch after using the kill switch, rather than it
-# coming back on its own. Change back to `on-failure` later if you want the
-# old always-running behavior.
-Restart=no
-# Chromium forks into subprocesses (renderer, GPU, etc.) that can escape
-# systemd's default PID tracking, leaving `systemctl stop` unable to kill
-# the window. Force a full cgroup kill, and back it up with a direct pkill.
+ExecStart=/usr/bin/chromium --kiosk --app=http://192.168.0.10:8000/ \
+  --noerrdialogs --disable-infobars --no-first-run --disable-translate \
+  --check-for-update-interval=31536000 --disable-pinch \
+  --overscroll-history-navigation=0 --password-store=basic \
+  --disable-session-crashed-bubble
+Restart=on-failure
+RestartSec=5
 KillMode=control-group
-TimeoutStopSec=10
 ExecStop=/usr/bin/pkill -9 -f chromium
 
 [Install]
