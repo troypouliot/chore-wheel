@@ -8,16 +8,18 @@ Type=simple
 User=pi
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/pi/.Xauthority
-# Wait until the home server is actually reachable over network before launching Chromium
-ExecStartPre=/bin/sh -c 'until curl -s --connect-timeout 2 http://192.168.0.10:8000/ > /dev/null; do sleep 2; done'
-# Replace CHOREWHEEL_SERVER_IP below with your home server's LAN IP or
-# hostname (e.g. http://192.168.1.50:8000/ or http://homeserver.local:8000/).
-# The Pi no longer runs the backend itself — it just displays this page.
+# 1. Wait for X11 display server :0 to be ready to render windows
+ExecStartPre=/bin/sh -c 'until xset q > /dev/null 2>&1; do sleep 1; done'
+# 2. Wait for network connection & backend HTTP 200 response
+ExecStartPre=/bin/sh -c 'until curl -s --connect-timeout 2 http://192.168.0.10:8000/ > /dev/null; do sleep 1; done'
+# 3. Settle window manager layout before launching
+ExecStartPre=/bin/sleep 2
 ExecStart=/usr/bin/chromium --kiosk --app=http://192.168.0.10:8000/ \
   --noerrdialogs --disable-infobars --no-first-run --disable-translate \
   --check-for-update-interval=31536000 --disable-pinch \
   --overscroll-history-navigation=0 --password-store=basic \
-  --disable-session-crashed-bubble
+  --disable-session-crashed-bubble --disable-gpu \
+  --start-maximized
 Restart=on-failure
 RestartSec=5
 KillMode=control-group
