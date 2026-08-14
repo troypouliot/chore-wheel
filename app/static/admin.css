@@ -326,3 +326,143 @@ th {
   gap: 8px;
   margin-top: 12px;
 }
+
+/* ---------------- Virtual Keyboard ---------------- */
+body.vk-open {
+  padding-bottom: 280px;
+}
+
+body.vk-open .modal {
+  margin-bottom: 280px;
+}
+
+.vk-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 99999;
+  background: #1e222a;
+  border-top: 1px solid #333842;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.3);
+  padding: 10px 12px 14px;
+  user-select: none;
+  touch-action: manipulation;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(0);
+}
+
+.vk-container.hidden {
+  transform: translateY(105%);
+  display: block !important;
+  pointer-events: none;
+}
+
+.vk-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.vk-title {
+  color: #a0a5b5;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.vk-close-btn {
+  background: #2d323e;
+  color: #4f8ef7;
+  border: 1px solid #3e4452;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vk-close-btn:active {
+  background: #4f8ef7;
+  color: white;
+}
+
+.vk-keys {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.vk-row {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  width: 100%;
+}
+
+.vk-key {
+  flex: 1;
+  height: 48px;
+  min-width: 28px;
+  max-width: 64px;
+  background: #2b303c;
+  color: #ffffff;
+  border: 1px solid #3a4050;
+  border-radius: 8px;
+  font-size: 1.25rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: background 0.1s, transform 0.05s;
+}
+
+.vk-key:active,
+.vk-key.vk-active {
+  background: #4f8ef7;
+  border-color: #4f8ef7;
+  color: white;
+  transform: scale(0.95);
+}
+
+.vk-key-special {
+  background: #222630;
+  color: #cbd0df;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.vk-key-backspace {
+  max-width: 72px;
+}
+
+.vk-key-space {
+  flex: 3;
+  max-width: 320px;
+  font-size: 0.95rem;
+}
+
+.vk-key-enter {
+  flex: 1.5;
+  max-width: 110px;
+  background: #4f8ef7;
+  border-color: #4f8ef7;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.vk-key-enter:active {
+  background: #3b76d9;
+}
+
+.vk-key-hide {
+  max-width: 80px;
+  background: #343a46;
+}
